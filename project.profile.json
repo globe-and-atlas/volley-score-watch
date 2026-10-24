@@ -1,0 +1,7 @@
+{
+  "profile": "workflow-python",
+  "deploy": "local-only",
+  "runtime": "pebble-sdk",
+  "loop_mode": "none",
+  "knowledge_level": "heavy"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "volley-score-watch",
+  "author": "Daniel Bally",
+  "version": "0.1.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "Volley Score",
+    "uuid": "476a8033-c6b6-45a8-9e0c-f5f94f02b809",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "emery"
+    ],
+    "watchapp": {
+      "watchface": false
+    },
+    "capabilities": ["location"],
+    "messageKeys": ["LOC_REQUEST", "LOC_SLOT", "LOC_LAT_E6", "LOC_LON_E6", "LOC_ACCURACY_M", "LOC_STATUS"],
+    "resources": {
+      "media": []
+    }
+  }
+}
