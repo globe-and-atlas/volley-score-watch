@@ -59,6 +59,7 @@ typedef struct {
 
 Rules rules_default(void);
 Rules rules_preset(RulesPreset preset);
+uint8_t weekday_of_month(int year, int month);
 bool rules_valid(Rules rules);
 void match_start(Match *match, Rules rules);
 uint8_t match_target(const Match *match);

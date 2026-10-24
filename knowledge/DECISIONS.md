@@ -19,3 +19,9 @@
 - Treat the user's 3-set formats as best of 3; the match ends at two set wins.
 - Provide 25/25/15, JV 25/25/25, and Varsity five sets to 25 as next-match presets. Preserve custom point targets for other leagues.
 - Default US to blue and THEM to red. Keep team colors distinct so calendar wins and losses remain identifiable; apply color preference to historical result views as a display choice.
+
+## 2026-10-24 — Touch input
+
+- Enable touch by default in this Emery watchapp, with a persisted on-watch switch. Keep the physical button handlers active regardless of that switch.
+- Accept score taps only inside the two large team panels during an active set. Ignore unarmed contacts and score-panel swipes to reduce accidental points. Give successful touch points a vibration tick.
+- Use touch for direct menu selection and calendar/history browsing. Subscribe to the touch service only while the watchapp window is visible and the app's touch preference is on.

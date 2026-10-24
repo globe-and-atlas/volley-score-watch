@@ -11,6 +11,7 @@
 #define KEY_ROLLOVER_BACKUP 6
 #define KEY_US_COLOR 7
 #define KEY_THEM_COLOR 8
+#define KEY_TOUCH_ENABLED 9
 #define KEY_RECORD_BASE 100
 #define RECORD_CAPACITY 80
 #define RECORDS_PER_CHUNK 8
@@ -55,11 +56,20 @@ static uint8_t s_count;
 static uint8_t s_next;
 static uint8_t s_generation;
 static bool s_location_enabled;
+static bool s_touch_enabled;
+static bool s_touch_subscribed;
+static bool s_window_visible;
+static bool s_touch_active;
+static int16_t s_touch_start_x;
+static int16_t s_touch_start_y;
+static Screen s_touch_start_screen;
 static Screen s_screen;
 static uint8_t s_cursor;
 static int16_t s_month_offset;
 static uint8_t s_history_cursor;
 static char s_notice[28];
+
+static void sync_touch_subscription(void);
 
 static void redraw(void) { layer_mark_dirty(s_canvas); }
 
@@ -106,6 +116,8 @@ static void load_data(void) {
   }
   s_location_enabled = !persist_exists(KEY_LOCATION_ENABLED) ||
                        persist_read_bool(KEY_LOCATION_ENABLED);
+  s_touch_enabled = !persist_exists(KEY_TOUCH_ENABLED) ||
+                    persist_read_bool(KEY_TOUCH_ENABLED);
   s_color_choice[0] = 0;  // blue
   s_color_choice[1] = 1;  // red
   if (persist_exists(KEY_US_COLOR)) {
@@ -299,6 +311,14 @@ static void label(GContext *ctx, const char *value, const char *font,
                      GTextOverflowModeTrailingEllipsis, alignment, NULL);
 }
 
+static bool touch_ready(void) {
+#if defined(PBL_TOUCH)
+  return s_touch_enabled && touch_service_is_enabled();
+#else
+  return false;
+#endif
+}
+
 static void score_screen(GContext *ctx) {
   char text[40];
   fill(ctx, GColorWhite, GRect(0, 0, 200, 228));
@@ -328,7 +348,8 @@ static void score_screen(GContext *ctx) {
   label(ctx, text, FONT_KEY_GOTHIC_18, GColorBlack,
         GRect(4, 171, 192, 25), GTextAlignmentCenter);
   if (s_match.score.phase == PHASE_PLAYING) {
-    label(ctx, "UP +US  |  DOWN +THEM", FONT_KEY_GOTHIC_18_BOLD, GColorBlack,
+    label(ctx, touch_ready() ? "TAP TEAM +1  |  BUTTONS OK" :
+          "UP +US  |  DOWN +THEM", FONT_KEY_GOTHIC_18_BOLD, GColorBlack,
           GRect(4, 197, 192, 24), GTextAlignmentCenter);
   } else if (s_match.score.phase == PHASE_SET_WON) {
     label(ctx, "SELECT NEXT | HOLD UNDO", FONT_KEY_GOTHIC_18_BOLD, GColorBlack,
@@ -376,8 +397,9 @@ static void colors_screen(GContext *ctx) {
   snprintf(us, sizeof(us), "US: %s", team_color_name(0));
   snprintf(them, sizeof(them), "THEM: %s", team_color_name(1));
   const char *items[] = {us, them,
-                         s_location_enabled ? "Save GPS: on" : "Save GPS: off", "Done"};
-  list_screen(ctx, "TEAM COLORS", items, 4, s_cursor);
+                         s_location_enabled ? "Save GPS: on" : "Save GPS: off",
+                         s_touch_enabled ? "Touch: on" : "Touch: off", "Done"};
+  list_screen(ctx, s_notice[0] ? s_notice : "COLORS / INPUT", items, 5, s_cursor);
 }
 
 static uint8_t selected_format(void) {
@@ -392,7 +414,7 @@ static uint8_t selected_format(void) {
 
 static void formats_screen(GContext *ctx) {
   const char *items[] = {"3 SETS: 25/25/15", "JV: 3 SETS TO 25",
-                         "VARSITY: 5 TO 25", "CUSTOM RULES", "COLORS / GPS"};
+                         "VARSITY: 5 TO 25", "CUSTOM RULES", "COLORS / INPUT"};
   list_screen(ctx, "MATCH SETTINGS", items, 5, s_cursor);
 }
 
@@ -438,9 +460,7 @@ static void calendar_screen(GContext *ctx) {
   for (int i = 0; i < 7; i++)
     label(ctx, weekdays[i], FONT_KEY_GOTHIC_18_BOLD, GColorBlack,
           GRect(6 + i * 27, 48, 25, 21), GTextAlignmentCenter);
-  struct tm first = {.tm_year = year - 1900, .tm_mon = month - 1, .tm_mday = 1};
-  mktime(&first);
-  int first_weekday = first.tm_wday;
+  int first_weekday = weekday_of_month(year, month);
   for (int day = 1; day <= days_in_month(year, month); day++) {
     int cell = first_weekday + day - 1;
     int x = 7 + (cell % 7) * 27;
@@ -614,13 +634,21 @@ static void update_proc(Layer *layer, GContext *ctx) {
   }
 }
 
+static bool add_point(uint8_t team, bool touch) {
+  if (s_screen != SCREEN_SCORE || !match_point(&s_match, team)) return false;
+  save_match_state();
+  if (touch) vibes_short_pulse();
+  redraw();
+  return true;
+}
+
 static void up_click(ClickRecognizerRef recognizer, void *context) {
   s_notice[0] = '\0';
-  if (s_screen == SCREEN_SCORE && match_point(&s_match, 0)) save_match_state();
+  if (s_screen == SCREEN_SCORE) add_point(0, false);
   else if (s_screen == SCREEN_MENU) s_cursor = (s_cursor + 4) % 5;
   else if (s_screen == SCREEN_FORMATS) s_cursor = (s_cursor + 4) % 5;
-  else if (s_screen == SCREEN_SETTINGS || s_screen == SCREEN_COLORS)
-    s_cursor = (s_cursor + 3) % 4;
+  else if (s_screen == SCREEN_SETTINGS) s_cursor = (s_cursor + 3) % 4;
+  else if (s_screen == SCREEN_COLORS) s_cursor = (s_cursor + 4) % 5;
   else if (s_screen == SCREEN_CALENDAR && s_month_offset > -120) s_month_offset--;
   else if (s_screen == SCREEN_HISTORY && s_history_cursor > 0) s_history_cursor--;
   redraw();
@@ -628,11 +656,11 @@ static void up_click(ClickRecognizerRef recognizer, void *context) {
 
 static void down_click(ClickRecognizerRef recognizer, void *context) {
   s_notice[0] = '\0';
-  if (s_screen == SCREEN_SCORE && match_point(&s_match, 1)) save_match_state();
+  if (s_screen == SCREEN_SCORE) add_point(1, false);
   else if (s_screen == SCREEN_MENU) s_cursor = (s_cursor + 1) % 5;
   else if (s_screen == SCREEN_FORMATS) s_cursor = (s_cursor + 1) % 5;
-  else if (s_screen == SCREEN_SETTINGS || s_screen == SCREEN_COLORS)
-    s_cursor = (s_cursor + 1) % 4;
+  else if (s_screen == SCREEN_SETTINGS) s_cursor = (s_cursor + 1) % 4;
+  else if (s_screen == SCREEN_COLORS) s_cursor = (s_cursor + 1) % 5;
   else if (s_screen == SCREEN_CALENDAR && s_month_offset < 0) s_month_offset++;
   else if (s_screen == SCREEN_HISTORY && s_history_cursor + 1 < month_match_count())
     s_history_cursor++;
@@ -691,6 +719,12 @@ static void select_click(ClickRecognizerRef recognizer, void *context) {
     } else if (s_cursor == 2) {
       s_location_enabled = !s_location_enabled;
       save_colors();
+    } else if (s_cursor == 3) {
+      bool next = !s_touch_enabled;
+      if (persist_write_bool(KEY_TOUCH_ENABLED, next) > 0) {
+        s_touch_enabled = next;
+        sync_touch_subscription();
+      } else notice("SAVE FAILED");
     } else { s_screen = SCREEN_FORMATS; s_cursor = 4; }
   } else if (s_screen == SCREEN_CONFIRM_NEW) {
     uint32_t next_id = s_match.match_id == UINT32_MAX ? 1 : s_match.match_id + 1;
@@ -736,11 +770,120 @@ static void click_config(void *context) {
   window_single_click_subscribe(BUTTON_ID_BACK, back_click);
 }
 
+#if defined(PBL_TOUCH)
+static int magnitude(int value) { return value < 0 ? -value : value; }
+
+static void tap_calendar_day(int16_t x, int16_t y) {
+  if (x < 7 || x >= 193 || y < 72 || y >= 204) return;
+  int col = (x - 7) / 27;
+  int row = (y - 72) / 22;
+  if ((x - 7) % 27 >= 24 || (y - 72) % 22 >= 20) return;
+  int year, month;
+  current_month(s_month_offset, &year, &month);
+  int day = row * 7 + col - weekday_of_month(year, month) + 1;
+  if (day < 1 || day > days_in_month(year, month)) return;
+  uint8_t count = month_match_count();
+  for (uint8_t i = 0; i < count; i++) {
+    MatchRecord *record = month_record_at(i);
+    if (record && record->day == day) {
+      s_history_cursor = i;
+      s_screen = SCREEN_HISTORY;
+      redraw();
+      return;
+    }
+  }
+}
+
+static void touch_tap(int16_t x, int16_t y, int16_t start_x, int16_t start_y) {
+  if (s_screen == SCREEN_SCORE) {
+    if (s_match.score.phase != PHASE_PLAYING || y < 39 || y >= 165 ||
+        start_y < 39 || start_y >= 165) return;
+    if (x >= 7 && x < 97 && start_x >= 7 && start_x < 97) add_point(0, true);
+    else if (x >= 103 && x < 193 && start_x >= 103 && start_x < 193)
+      add_point(1, true);
+    return;
+  }
+  uint8_t rows = 0;
+  if (s_screen == SCREEN_MENU || s_screen == SCREEN_FORMATS || s_screen == SCREEN_COLORS)
+    rows = 5;
+  else if (s_screen == SCREEN_SETTINGS) rows = 4;
+  if (rows && x >= 7 && x < 193 && y >= 39 && y < 39 + rows * 37) {
+    uint8_t row = (y - 39) / 37;
+    if ((y - 39) % 37 >= 35 || start_y < 39 ||
+        (start_y - 39) / 37 != row) return;
+    s_cursor = row;
+    select_click(NULL, NULL);
+  } else if (s_screen == SCREEN_CALENDAR) tap_calendar_day(x, y);
+}
+
+static void touch_swipe(int dx, int dy) {
+  if (magnitude(dx) < 35 || magnitude(dy) > 50) return;
+  if (s_screen == SCREEN_CALENDAR) {
+    if (dx > 0 && s_month_offset > -120) s_month_offset--;
+    else if (dx < 0 && s_month_offset < 0) s_month_offset++;
+    redraw();
+  } else if (s_screen == SCREEN_HISTORY) {
+    if (dx < 0 && s_history_cursor + 1 < month_match_count()) s_history_cursor++;
+    else if (dx > 0 && s_history_cursor > 0) s_history_cursor--;
+    redraw();
+  }
+}
+
+static void touch_handler(const TouchEvent *event, void *context) {
+  if (event->type == TouchEvent_Touchdown) {
+    // The first contact on an idle watch is only a wake gesture.
+    s_touch_active = !event->non_navigational;
+    s_touch_start_x = event->x;
+    s_touch_start_y = event->y;
+    s_touch_start_screen = s_screen;
+    return;
+  }
+  if (event->type != TouchEvent_Liftoff || !s_touch_active) return;
+  s_touch_active = false;
+  if (s_touch_start_screen != s_screen) return;
+  int dx = event->x - s_touch_start_x;
+  int dy = event->y - s_touch_start_y;
+  if (magnitude(dx) <= 15 && magnitude(dy) <= 15)
+    touch_tap(event->x, event->y, s_touch_start_x, s_touch_start_y);
+  else touch_swipe(dx, dy);
+}
+#endif
+
+static void sync_touch_subscription(void) {
+#if defined(PBL_TOUCH)
+  bool want = s_window_visible && s_touch_enabled;
+  if (want && !s_touch_subscribed) {
+    touch_service_subscribe(touch_handler, NULL);
+    s_touch_subscribed = true;
+  } else if (!want && s_touch_subscribed) {
+    s_touch_active = false;
+    touch_service_unsubscribe();
+    s_touch_subscribed = false;
+  }
+#endif
+}
+
+static void window_appear(Window *window) {
+  s_window_visible = true;
+  sync_touch_subscription();
+}
+
+static void window_disappear(Window *window) {
+  s_window_visible = false;
+  sync_touch_subscription();
+}
+
 static void init(void) {
   load_data();
   s_window = window_create();
   window_set_background_color(s_window, GColorWhite);
   window_set_click_config_provider(s_window, click_config);
+  window_set_window_handlers(s_window, (WindowHandlers){
+    .appear = window_appear, .disappear = window_disappear
+  });
+#if defined(PBL_TOUCH)
+  window_set_touch_bridge_disabled(s_window, true);
+#endif
   Layer *root = window_get_root_layer(s_window);
   s_canvas = layer_create(layer_get_bounds(root));
   layer_set_update_proc(s_canvas, update_proc);
@@ -751,6 +894,8 @@ static void init(void) {
 }
 
 static void deinit(void) {
+  s_window_visible = false;
+  sync_touch_subscription();
   save_match_state();
   layer_destroy(s_canvas);
   window_destroy(s_window);

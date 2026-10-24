@@ -2,11 +2,23 @@
 
 ## Current Session
 
-**Goal:** Add 3-set 25/25/15, JV 3x25, and Varsity 5x25 match presets.
+**Goal:** Add optional touch controls while retaining button control.
 **Agent:** OpenAI Codex
 **Handoff-from:** OpenAI Codex
 **Handoff-type:** continuation
 **Status:** Complete locally
+
+## Handoff — 2026-10-24 touch controls
+- **Completed**: touch scoring, tappable menus, calendar/history gestures, persisted on-watch switch, button fallback, and deterministic calendar weekday placement.
+- **Commands**: `make build` (exit 0, including host tests); `git diff --check` (exit 0); independent verification and re-review (no remaining concrete defect).
+- **Observed**: Emery touch replay added US/THEM points, ignored a cross-panel swipe, selected menu rows, changed calendar months, opened a marked day, and moved between two saved matches. Touch off persisted across restart; button Up still scored.
+- **Issues found**: calendar weekday was shifted by one column; fixed with an integer weekday calculation. A verifier found a failed preference write could silently revert touch on restart; fixed by applying the switch only after a successful write.
+- **Left undone**: physical Time 2 touch accuracy, vibration feel, wrist readability, and paired iPhone GPS validation.
+- **Next**: sideload the PBW on a physical Time 2, play a match, and check accidental touches and haptic feedback.
+
+## Checkpoint — 2026-10-24
+- **Scope**: touch score panels, tappable list rows, calendar/history gestures, persistent on-watch toggle.
+- **Constraint**: button inputs remain active regardless of touch preference; ignore unarmed touch contacts.
 
 ## Handoff — 2026-10-24 12:55 CDT
 - **Completed**: 25/25/15, JV 3x25, and Varsity 5x25 presets; configurable blue/red default team colors; updated emulator captures.

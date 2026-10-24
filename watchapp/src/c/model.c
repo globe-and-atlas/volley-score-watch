@@ -18,6 +18,12 @@ Rules rules_preset(RulesPreset preset) {
   }
 }
 
+uint8_t weekday_of_month(int year, int month) {
+  static const uint8_t offsets[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+  if (month < 3) year--;
+  return (year + year / 4 - year / 100 + year / 400 + offsets[month - 1] + 1) % 7;
+}
+
 bool rules_valid(Rules rules) {
   return (rules.best_of == 3 || rules.best_of == 5) &&
          (rules.regular_target == 15 || rules.regular_target == 25) &&

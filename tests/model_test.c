@@ -9,6 +9,9 @@ static void score_to(Match *match, unsigned us, unsigned them) {
 }
 
 int main(void) {
+  assert(weekday_of_month(2026, 10) == 4);  // October 1 is Thursday.
+  assert(weekday_of_month(2024, 2) == 4);   // Leap-year February 1 is Thursday.
+  assert(weekday_of_month(2000, 1) == 6);   // January 1 is Saturday.
   Match m;
   Rules three = rules_preset(PRESET_THREE_DECIDER_15);
   Rules jv = rules_preset(PRESET_JV_THREE_25);

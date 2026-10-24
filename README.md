@@ -1,11 +1,13 @@
 # Volley Score Watch
 
-A button-first volleyball scorer for Pebble Time 2. It runs offline on the watch and saves completed matches by date. A calendar colors win and loss days; a places screen plots the coordinates of matches saved with a phone GPS fix.
+A volleyball scorer for Pebble Time 2 with touch and button controls. It runs offline on the watch and saves completed matches by date. A calendar colors win and loss days; a places screen plots the coordinates of matches saved with a phone GPS fix.
 
-Emery emulator captures: [score](docs/screenshots/score-emery.png), [match formats](docs/screenshots/settings-emery.png), [team colors](docs/screenshots/colors-emery.png), [JV third set](docs/screenshots/jv-third-emery.png), [calendar](docs/screenshots/calendar-emery.png), [places](docs/screenshots/places-emery.png). Physical watch readability remains to be checked.
+Emery emulator captures: [touch scoring](docs/screenshots/score-emery.png), [match formats](docs/screenshots/settings-emery.png), [touch setting](docs/screenshots/input-emery.png), [JV third set](docs/screenshots/jv-third-emery.png), [calendar](docs/screenshots/calendar-emery.png), [saved match](docs/screenshots/history-emery.png), [places](docs/screenshots/places-emery.png). Physical watch readability remains to be checked.
 
 ## Watch controls
 
+- **Touch:** tap the US or THEM score panel to add one point and feel a short vibration. Tap a menu or settings row to activate it. Swipe horizontally in the calendar to change months or in saved match details to change records. Tap a marked calendar date to open its saved match. A score-panel swipe does not add points.
+- **Touch switch:** Match Settings → Colors / Input → Touch. Touch starts on and can be turned off on the watch. A button press or wrist wake arms touch after the watch has been idle.
 - **Up / Down:** add a point to US / THEM.
 - **Select:** open the menu; after a set, start the next set; after a match, save it.
 - **Hold Select:** undo the last point, including a set-winning or match-winning point before saving.
@@ -14,7 +16,7 @@ Emery emulator captures: [score](docs/screenshots/score-emery.png), [match forma
 
 The default is a best-of-3 match with sets to 25, 25, and 15. The match ends at two set wins. Match Settings also offers **JV: 3 sets to 25** (ends at two wins) and **Varsity: 5 sets to 25** (ends at three wins). Custom rules allow best of 3 or 5, regular sets to 15 or 25, and deciding sets to 15 or 25. Every set requires a two-point lead. Rule changes apply when a new match starts.
 
-Team Colors lets you choose separate colors for US and THEM. The defaults are **blue for US** and **red for THEM**. Color changes apply immediately to the score, calendar, saved match details, and places plot. The current match auto-saves after each point and survives app exit.
+Colors / Input lets you choose separate colors for US and THEM and switch touch controls on or off. The defaults are **blue for US** and **red for THEM**. Color changes apply immediately to the score, calendar, saved match details, and places plot. Buttons work with touch either on or off. The current match auto-saves after each point and survives app exit.
 
 Completed matches save on the watch when Select is pressed. A phone GPS fix is requested at that moment if **Save GPS** is on. The result saves even when the phone is disconnected or location is denied. The match detail distinguishes coordinates from no GPS. Match Places is a relative point plot without street-map tiles.
 

@@ -95,3 +95,48 @@ Build an offline Pebble Time 2 volleyball scorer with configurable match rules a
 - 2026-10-24: Host model tests and clean Emery PBW build passed.
 - 2026-10-24: Emery replay showed the JV third set targeting 25 points; format, color, score, and calendar screens were inspected at native resolution.
 - 2026-10-24: Independent read-only verifier found no concrete defect in the preset and color changes.
+
+## 2026-10-24 Touch controls
+
+### Validation Contract
+
+- Touch controls default to on when no preference exists.
+- A saved off preference survives app restart.
+- The input settings allow touch controls to be turned off.
+- The input settings allow touch controls to be turned on.
+- An off preference prevents touch scoring.
+- An off preference prevents touch menu navigation.
+- Up adds a US point with touch off.
+- Down adds a THEM point with touch off.
+- Select navigates with touch off.
+- Back navigates with touch off.
+- A tap inside the US score panel adds one US point during play.
+- A tap inside the THEM score panel adds one THEM point during play.
+- A scoring tap produces one vibration pulse.
+- A swipe across the score panels adds no point.
+- An unarmed touch adds no point.
+- Tapping a list row activates that row.
+- A horizontal calendar swipe changes the displayed month.
+- Tapping a date with saved matches opens a saved match from that date.
+- The October 2026 calendar places October 24 in the Saturday column.
+- A horizontal history swipe changes the displayed record when another exists.
+- The Emery PBW builds successfully.
+- An Emery emulator replay exercises touch scoring.
+- An Emery emulator replay exercises the off setting.
+- A fresh verifier reviews the touch path.
+
+### Checklist
+
+- [x] Implement persisted touch setting.
+- [x] Implement touch scoring and navigation.
+- [x] Run host tests and build Emery PBW.
+- [x] Replay touch and button paths in Emery.
+- [x] Run fresh verification.
+
+### Result
+
+- 2026-10-24: `make build` passed host tests and created the Emery PBW.
+- 2026-10-24: Emulator taps scored US and THEM; a cross-panel swipe scored neither.
+- 2026-10-24: Touch off blocked tap input after restart; Up still added a point.
+- 2026-10-24: Touch menu taps, calendar swipes, date taps, and history swipes were replayed in Emery.
+- 2026-10-24: A fresh verifier found two issues; both were fixed and re-reviewed with no remaining concrete defect.
