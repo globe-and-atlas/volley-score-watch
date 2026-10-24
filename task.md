@@ -57,3 +57,41 @@ Build an offline Pebble Time 2 volleyball scorer with configurable match rules a
 - 2026-10-24 12:11 CDT: Project scaffold created; rules and display contract defined.
 - 2026-10-24 12:23 CDT: Model tests pass; clean Emery PBW built; emulator match save, calendar result, GPS result, and active-match resume inspected.
 - 2026-10-24 12:42 CDT: Fresh verifier found save and undo edge cases; fixes landed and independent reinspection found no remaining concrete local defect. Physical watch/iPhone behavior remains a release gate.
+
+## 2026-10-24 Match format presets
+
+### Validation Contract
+
+- A 3-set preset uses 25 points for sets one and two.
+- The 3-set preset uses 15 points for set three.
+- The JV preset uses 25 points for set three.
+- The Varsity preset uses 25 points for set five.
+- A 3-set match ends at two set wins.
+- A 5-set match ends at three set wins.
+- Custom point targets remain editable.
+- A preset selection applies to the next match.
+- US defaults to blue when no color preference is saved.
+- THEM defaults to red when no color preference is saved.
+- The settings allow changing the US color.
+- The settings allow changing the THEM color.
+- The settings prevent both teams using the same color.
+- Saved match colors follow the current team color preferences.
+- Calendar colors follow the current team color preferences.
+- Places plot colors follow the current team color preferences.
+- `make build` succeeds.
+- The Emery match-format menu is legible at native resolution.
+- A fresh verifier checks the final rules and selection flow.
+
+### Checklist
+
+- [x] Add preset rules and tests.
+- [x] Add match-format menu.
+- [x] Add team-color settings.
+- [x] Build and inspect Emery screen.
+- [x] Run fresh verification.
+
+### Result
+
+- 2026-10-24: Host model tests and clean Emery PBW build passed.
+- 2026-10-24: Emery replay showed the JV third set targeting 25 points; format, color, score, and calendar screens were inspected at native resolution.
+- 2026-10-24: Independent read-only verifier found no concrete defect in the preset and color changes.

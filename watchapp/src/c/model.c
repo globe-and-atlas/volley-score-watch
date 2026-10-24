@@ -3,7 +3,19 @@
 #include <string.h>
 
 Rules rules_default(void) {
-  return (Rules){.best_of = 3, .regular_target = 25, .deciding_target = 15};
+  return rules_preset(PRESET_THREE_DECIDER_15);
+}
+
+Rules rules_preset(RulesPreset preset) {
+  switch (preset) {
+    case PRESET_JV_THREE_25:
+      return (Rules){.best_of = 3, .regular_target = 25, .deciding_target = 25};
+    case PRESET_VARSITY_FIVE_25:
+      return (Rules){.best_of = 5, .regular_target = 25, .deciding_target = 25};
+    case PRESET_THREE_DECIDER_15:
+    default:
+      return (Rules){.best_of = 3, .regular_target = 25, .deciding_target = 15};
+  }
 }
 
 bool rules_valid(Rules rules) {

@@ -16,6 +16,13 @@ typedef struct {
   uint8_t deciding_target;
 } Rules;
 
+typedef enum {
+  PRESET_THREE_DECIDER_15 = 0,
+  PRESET_JV_THREE_25 = 1,
+  PRESET_VARSITY_FIVE_25 = 2,
+  PRESET_COUNT = 3
+} RulesPreset;
+
 typedef struct {
   uint16_t points[2];
   uint8_t sets[2];
@@ -51,6 +58,7 @@ typedef struct {
 } MatchRecord;
 
 Rules rules_default(void);
+Rules rules_preset(RulesPreset preset);
 bool rules_valid(Rules rules);
 void match_start(Match *match, Rules rules);
 uint8_t match_target(const Match *match);

@@ -9,10 +9,13 @@
 #define KEY_HISTORY_META 3
 #define KEY_LOCATION_ENABLED 5
 #define KEY_ROLLOVER_BACKUP 6
+#define KEY_US_COLOR 7
+#define KEY_THEM_COLOR 8
 #define KEY_RECORD_BASE 100
 #define RECORD_CAPACITY 80
 #define RECORDS_PER_CHUNK 8
 #define RECORD_CHUNKS (RECORD_CAPACITY / RECORDS_PER_CHUNK)
+#define TEAM_COLOR_COUNT 6
 
 typedef struct {
   uint8_t version;
@@ -32,7 +35,9 @@ typedef struct {
 typedef enum {
   SCREEN_SCORE,
   SCREEN_MENU,
+  SCREEN_FORMATS,
   SCREEN_SETTINGS,
+  SCREEN_COLORS,
   SCREEN_CONFIRM_NEW,
   SCREEN_CONFIRM_REPLACE,
   SCREEN_CALENDAR,
@@ -44,6 +49,7 @@ static Window *s_window;
 static Layer *s_canvas;
 static Match s_match;
 static Rules s_defaults;
+static uint8_t s_color_choice[2];
 static MatchRecord s_records[RECORD_CAPACITY];
 static uint8_t s_count;
 static uint8_t s_next;
@@ -71,6 +77,12 @@ static void save_defaults(void) {
   persist_write_bool(KEY_LOCATION_ENABLED, s_location_enabled);
 }
 
+static void save_colors(void) {
+  persist_write_int(KEY_US_COLOR, s_color_choice[0]);
+  persist_write_int(KEY_THEM_COLOR, s_color_choice[1]);
+  persist_write_bool(KEY_LOCATION_ENABLED, s_location_enabled);
+}
+
 static MatchRecord *record_at(uint8_t chronological_index) {
   if (chronological_index >= s_count) return NULL;
   uint8_t slot = (s_next + RECORD_CAPACITY - s_count + chronological_index) % RECORD_CAPACITY;
@@ -94,6 +106,18 @@ static void load_data(void) {
   }
   s_location_enabled = !persist_exists(KEY_LOCATION_ENABLED) ||
                        persist_read_bool(KEY_LOCATION_ENABLED);
+  s_color_choice[0] = 0;  // blue
+  s_color_choice[1] = 1;  // red
+  if (persist_exists(KEY_US_COLOR)) {
+    int color = persist_read_int(KEY_US_COLOR);
+    if (color >= 0 && color < TEAM_COLOR_COUNT) s_color_choice[0] = color;
+  }
+  if (persist_exists(KEY_THEM_COLOR)) {
+    int color = persist_read_int(KEY_THEM_COLOR);
+    if (color >= 0 && color < TEAM_COLOR_COUNT) s_color_choice[1] = color;
+  }
+  if (s_color_choice[0] == s_color_choice[1])
+    s_color_choice[1] = s_color_choice[0] == 1 ? 0 : 1;
   match_start(&s_match, s_defaults);
   if (persist_exists(KEY_MATCH)) {
     Match loaded;
@@ -247,7 +271,25 @@ static void fill(GContext *ctx, GColor color, GRect rect) {
 }
 
 static GColor team_color(uint8_t team) {
-  return team == 0 ? GColorFromRGB(30, 79, 100) : GColorFromRGB(205, 111, 91);
+  switch (s_color_choice[team]) {
+    case 0: return GColorBlue;
+    case 1: return GColorRed;
+    case 2: return GColorFromRGB(30, 79, 100);
+    case 3: return GColorFromRGB(205, 111, 91);
+    case 4: return GColorPurple;
+    default: return GColorDarkGreen;
+  }
+}
+
+static const char *team_color_name(uint8_t team) {
+  static const char *names[] = {"BLUE", "RED", "TEAL", "CORAL", "PURPLE", "GREEN"};
+  return names[s_color_choice[team]];
+}
+
+static void cycle_team_color(uint8_t team) {
+  do {
+    s_color_choice[team] = (s_color_choice[team] + 1) % TEAM_COLOR_COUNT;
+  } while (s_color_choice[team] == s_color_choice[1 - team]);
 }
 
 static void label(GContext *ctx, const char *value, const char *font,
@@ -325,9 +367,33 @@ static void settings_screen(GContext *ctx) {
   snprintf(row0, sizeof(row0), "Best of %u", s_defaults.best_of);
   snprintf(row1, sizeof(row1), "Regular: %u", s_defaults.regular_target);
   snprintf(row2, sizeof(row2), "Decider: %u", s_defaults.deciding_target);
-  const char *items[] = {row0, row1, row2,
+  const char *items[] = {row0, row1, row2, "Done"};
+  list_screen(ctx, "CUSTOM RULES", items, 4, s_cursor);
+}
+
+static void colors_screen(GContext *ctx) {
+  char us[28], them[28];
+  snprintf(us, sizeof(us), "US: %s", team_color_name(0));
+  snprintf(them, sizeof(them), "THEM: %s", team_color_name(1));
+  const char *items[] = {us, them,
                          s_location_enabled ? "Save GPS: on" : "Save GPS: off", "Done"};
-  list_screen(ctx, "NEXT MATCH RULES", items, 5, s_cursor);
+  list_screen(ctx, "TEAM COLORS", items, 4, s_cursor);
+}
+
+static uint8_t selected_format(void) {
+  for (uint8_t i = 0; i < PRESET_COUNT; i++) {
+    Rules preset = rules_preset((RulesPreset)i);
+    if (s_defaults.best_of == preset.best_of &&
+        s_defaults.regular_target == preset.regular_target &&
+        s_defaults.deciding_target == preset.deciding_target) return i;
+  }
+  return PRESET_COUNT;
+}
+
+static void formats_screen(GContext *ctx) {
+  const char *items[] = {"3 SETS: 25/25/15", "JV: 3 SETS TO 25",
+                         "VARSITY: 5 TO 25", "CUSTOM RULES", "COLORS / GPS"};
+  list_screen(ctx, "MATCH SETTINGS", items, 5, s_cursor);
 }
 
 static void current_month(int16_t offset, int *year, int *month) {
@@ -389,8 +455,15 @@ static void calendar_screen(GContext *ctx) {
           day_state[day] ? GColorWhite : GColorBlack,
           GRect(x, y - 2, 24, 21), GTextAlignmentCenter);
   }
-  label(ctx, "TEAL W  CORAL L  BLACK BOTH", FONT_KEY_GOTHIC_14, GColorBlack,
-        GRect(3, 203, 194, 20), GTextAlignmentCenter);
+  fill(ctx, team_color(0), GRect(13, 207, 10, 10));
+  label(ctx, "W", FONT_KEY_GOTHIC_14_BOLD, GColorBlack,
+        GRect(27, 201, 25, 20), GTextAlignmentLeft);
+  fill(ctx, team_color(1), GRect(62, 207, 10, 10));
+  label(ctx, "L", FONT_KEY_GOTHIC_14_BOLD, GColorBlack,
+        GRect(77, 201, 20, 20), GTextAlignmentLeft);
+  fill(ctx, GColorBlack, GRect(108, 207, 10, 10));
+  label(ctx, "BOTH", FONT_KEY_GOTHIC_14_BOLD, GColorBlack,
+        GRect(122, 201, 65, 20), GTextAlignmentLeft);
 }
 
 static uint8_t month_match_count(void) {
@@ -496,7 +569,7 @@ static void places_screen(GContext *ctx) {
     fill(ctx, team_color(r->winner), GRect(x - 3, y - 3, 7, 7));
   }
   char text[40];
-  snprintf(text, sizeof(text), "%u PIN%s  TEAL=W  CORAL=L", plotted,
+  snprintf(text, sizeof(text), "%u PIN%s  US=W  THEM=L", plotted,
            plotted == 1 ? "" : "S");
   label(ctx, text, FONT_KEY_GOTHIC_14, GColorBlack,
         GRect(2, 198, 196, 22), GTextAlignmentCenter);
@@ -506,7 +579,9 @@ static void update_proc(Layer *layer, GContext *ctx) {
   switch (s_screen) {
     case SCREEN_SCORE: score_screen(ctx); break;
     case SCREEN_MENU: list_screen(ctx, "MATCH MENU", menu_items, 5, s_cursor); break;
+    case SCREEN_FORMATS: formats_screen(ctx); break;
     case SCREEN_SETTINGS: settings_screen(ctx); break;
+    case SCREEN_COLORS: colors_screen(ctx); break;
     case SCREEN_CONFIRM_NEW:
       fill(ctx, GColorWhite, GRect(0, 0, 200, 228));
       label(ctx, "NEW MATCH?", FONT_KEY_GOTHIC_28_BOLD, GColorBlack,
@@ -543,7 +618,9 @@ static void up_click(ClickRecognizerRef recognizer, void *context) {
   s_notice[0] = '\0';
   if (s_screen == SCREEN_SCORE && match_point(&s_match, 0)) save_match_state();
   else if (s_screen == SCREEN_MENU) s_cursor = (s_cursor + 4) % 5;
-  else if (s_screen == SCREEN_SETTINGS) s_cursor = (s_cursor + 4) % 5;
+  else if (s_screen == SCREEN_FORMATS) s_cursor = (s_cursor + 4) % 5;
+  else if (s_screen == SCREEN_SETTINGS || s_screen == SCREEN_COLORS)
+    s_cursor = (s_cursor + 3) % 4;
   else if (s_screen == SCREEN_CALENDAR && s_month_offset > -120) s_month_offset--;
   else if (s_screen == SCREEN_HISTORY && s_history_cursor > 0) s_history_cursor--;
   redraw();
@@ -553,7 +630,9 @@ static void down_click(ClickRecognizerRef recognizer, void *context) {
   s_notice[0] = '\0';
   if (s_screen == SCREEN_SCORE && match_point(&s_match, 1)) save_match_state();
   else if (s_screen == SCREEN_MENU) s_cursor = (s_cursor + 1) % 5;
-  else if (s_screen == SCREEN_SETTINGS) s_cursor = (s_cursor + 1) % 5;
+  else if (s_screen == SCREEN_FORMATS) s_cursor = (s_cursor + 1) % 5;
+  else if (s_screen == SCREEN_SETTINGS || s_screen == SCREEN_COLORS)
+    s_cursor = (s_cursor + 1) % 4;
   else if (s_screen == SCREEN_CALENDAR && s_month_offset < 0) s_month_offset++;
   else if (s_screen == SCREEN_HISTORY && s_history_cursor + 1 < month_match_count())
     s_history_cursor++;
@@ -584,15 +663,35 @@ static void select_click(ClickRecognizerRef recognizer, void *context) {
     } else if (s_cursor == 2) {
       s_screen = SCREEN_PLACES;
     } else if (s_cursor == 3) {
+      s_screen = SCREEN_FORMATS;
+      s_cursor = selected_format();
+    } else s_screen = SCREEN_CONFIRM_NEW;
+  } else if (s_screen == SCREEN_FORMATS) {
+    if (s_cursor < PRESET_COUNT) {
+      s_defaults = rules_preset((RulesPreset)s_cursor);
+      save_defaults();
+      s_screen = SCREEN_MENU;
+      s_cursor = 3;
+    } else if (s_cursor == 3) {
       s_screen = SCREEN_SETTINGS;
       s_cursor = 0;
-    } else s_screen = SCREEN_CONFIRM_NEW;
+    } else {
+      s_screen = SCREEN_COLORS;
+      s_cursor = 0;
+    }
   } else if (s_screen == SCREEN_SETTINGS) {
     if (s_cursor == 0) s_defaults.best_of = s_defaults.best_of == 3 ? 5 : 3;
     else if (s_cursor == 1) s_defaults.regular_target = s_defaults.regular_target == 25 ? 15 : 25;
     else if (s_cursor == 2) s_defaults.deciding_target = s_defaults.deciding_target == 15 ? 25 : 15;
-    else if (s_cursor == 3) s_location_enabled = !s_location_enabled;
-    else { save_defaults(); s_screen = SCREEN_MENU; s_cursor = 3; }
+    else { save_defaults(); s_screen = SCREEN_FORMATS; s_cursor = 3; }
+  } else if (s_screen == SCREEN_COLORS) {
+    if (s_cursor == 0 || s_cursor == 1) {
+      cycle_team_color(s_cursor);
+      save_colors();
+    } else if (s_cursor == 2) {
+      s_location_enabled = !s_location_enabled;
+      save_colors();
+    } else { s_screen = SCREEN_FORMATS; s_cursor = 4; }
   } else if (s_screen == SCREEN_CONFIRM_NEW) {
     uint32_t next_id = s_match.match_id == UINT32_MAX ? 1 : s_match.match_id + 1;
     match_start(&s_match, s_defaults);
@@ -610,7 +709,9 @@ static void select_click(ClickRecognizerRef recognizer, void *context) {
 }
 
 static void back_click(ClickRecognizerRef recognizer, void *context) {
-  if (s_screen == SCREEN_SETTINGS) { save_defaults(); s_screen = SCREEN_MENU; s_cursor = 3; }
+  if (s_screen == SCREEN_SETTINGS) { save_defaults(); s_screen = SCREEN_FORMATS; s_cursor = 3; }
+  else if (s_screen == SCREEN_COLORS) { save_colors(); s_screen = SCREEN_FORMATS; s_cursor = 4; }
+  else if (s_screen == SCREEN_FORMATS) { s_screen = SCREEN_MENU; s_cursor = 3; }
   else if (s_screen == SCREEN_HISTORY) s_screen = SCREEN_CALENDAR;
   else if (s_screen == SCREEN_MENU || s_screen == SCREEN_CALENDAR || s_screen == SCREEN_PLACES ||
            s_screen == SCREEN_CONFIRM_NEW || s_screen == SCREEN_CONFIRM_REPLACE)
