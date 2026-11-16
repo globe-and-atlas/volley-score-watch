@@ -8,9 +8,9 @@ Rules rules_default(void) {
 
 Rules rules_preset(RulesPreset preset) {
   switch (preset) {
-    case PRESET_JV_THREE_25:
+    case PRESET_THREE_ALL_25:
       return (Rules){.best_of = 3, .regular_target = 25, .deciding_target = 25};
-    case PRESET_VARSITY_FIVE_25:
+    case PRESET_FIVE_ALL_25:
       return (Rules){.best_of = 5, .regular_target = 25, .deciding_target = 25};
     case PRESET_THREE_DECIDER_15:
     default:

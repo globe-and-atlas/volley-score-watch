@@ -18,7 +18,7 @@ Produce a clean Emery PBW after the scoring model passes its host tests.
 
 1. Run the host C test command in `knowledge/procedural/build_verify.md`.
 2. Run `python3 execution/build.py` from the project root.
-3. Confirm `dist/volley-score-watch.pbw` exists.
+3. Confirm `dist/volleykeeper.pbw` exists.
 
 ## Edge cases
 
@@ -28,4 +28,4 @@ Produce a clean Emery PBW after the scoring model passes its host tests.
 
 ## Output
 
-`dist/volley-score-watch.pbw`, kept out of Git by `.gitignore`.
+`dist/volleykeeper.pbw`, kept out of Git by `.gitignore`.

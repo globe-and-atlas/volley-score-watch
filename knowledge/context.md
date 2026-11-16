@@ -2,9 +2,10 @@
 
 ## Identity
 
-- Name: `volley-score-watch`
+- Product name: VolleyKeeper
+- Repository folder: `volley-score-watch`
 - Profile: `workflow-python`
-- Deploy: `local-only`
+- Deploy: Pebble appstore
 - Runtime: `pebble-sdk`
 
 ## Purpose

@@ -18,8 +18,8 @@ typedef struct {
 
 typedef enum {
   PRESET_THREE_DECIDER_15 = 0,
-  PRESET_JV_THREE_25 = 1,
-  PRESET_VARSITY_FIVE_25 = 2,
+  PRESET_THREE_ALL_25 = 1,
+  PRESET_FIVE_ALL_25 = 2,
   PRESET_COUNT = 3
 } RulesPreset;
 

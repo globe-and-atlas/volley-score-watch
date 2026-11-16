@@ -1,6 +1,6 @@
 {
   "profile": "workflow-python",
-  "deploy": "local-only",
+  "deploy": "pebble-appstore",
   "runtime": "pebble-sdk",
   "loop_mode": "none",
   "knowledge_level": "heavy"

@@ -1,12 +1,12 @@
 {
-  "name": "volley-score-watch",
+  "name": "volleykeeper",
   "author": "Daniel Bally",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {},
   "pebble": {
-    "displayName": "Volley Score",
+    "displayName": "VolleyKeeper",
     "uuid": "476a8033-c6b6-45a8-9e0c-f5f94f02b809",
     "sdkVersion": "3",
     "enableMultiJS": true,

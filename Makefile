@@ -1,4 +1,4 @@
-# Volley Score Watch local commands
+# VolleyKeeper local commands
 .PHONY: test build clean help
 
 test:

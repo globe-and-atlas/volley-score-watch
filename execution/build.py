@@ -21,7 +21,7 @@ def main() -> None:
     if not source.is_file():
         raise FileNotFoundError(source)
     DIST.mkdir(parents=True, exist_ok=True)
-    target = DIST / "volley-score-watch.pbw"
+    target = DIST / "volleykeeper.pbw"
     shutil.copy2(source, target)
     print(target)
 

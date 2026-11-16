@@ -319,11 +319,87 @@ static bool touch_ready(void) {
 #endif
 }
 
+static void result_court(GContext *ctx) {
+  const GColor court = GColorFromRGB(220, 120, 88);
+  const GColor post = GColorFromRGB(29, 66, 91);
+  graphics_context_set_stroke_color(ctx, court);
+  for (int y = 153; y <= 187; y++) {
+    int spread = (y - 153) * 18 / 34;
+    graphics_draw_line(ctx, GPoint(29 - spread, y), GPoint(171 + spread, y));
+  }
+  graphics_context_set_stroke_color(ctx, GColorWhite);
+  graphics_draw_line(ctx, GPoint(29, 158), GPoint(11, 187));
+  graphics_draw_line(ctx, GPoint(171, 158), GPoint(189, 187));
+  graphics_draw_line(ctx, GPoint(14, 184), GPoint(186, 184));
+  graphics_draw_line(ctx, GPoint(25, 169), GPoint(175, 169));
+
+  fill(ctx, GColorFromRGB(240, 236, 226), GRect(28, 144, 144, 17));
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(103, 132, 145));
+  for (int x = 32; x <= 168; x += 12)
+    graphics_draw_line(ctx, GPoint(x, 145), GPoint(x, 160));
+  graphics_draw_line(ctx, GPoint(28, 150), GPoint(171, 150));
+  graphics_draw_line(ctx, GPoint(28, 155), GPoint(171, 155));
+  fill(ctx, post, GRect(28, 142, 144, 3));
+  fill(ctx, post, GRect(28, 160, 144, 2));
+  fill(ctx, post, GRect(22, 139, 6, 29));
+  fill(ctx, post, GRect(172, 139, 6, 29));
+}
+
+static void set_result_screen(GContext *ctx) {
+  char text[40];
+  const bool ours = s_match.score.points[0] > s_match.score.points[1];
+  const GColor result_color = team_color(ours ? 0 : 1);
+  fill(ctx, GColorFromRGB(240, 236, 226), GRect(0, 0, 200, 228));
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(220, 120, 88));
+  graphics_draw_line(ctx, GPoint(15, 15), GPoint(29, 27));
+  graphics_draw_line(ctx, GPoint(17, 24), GPoint(26, 30));
+  graphics_draw_line(ctx, GPoint(171, 27), GPoint(185, 15));
+  graphics_draw_line(ctx, GPoint(174, 30), GPoint(183, 24));
+  label(ctx, ours ? "SET WON" : "SET LOST", FONT_KEY_GOTHIC_28_BOLD,
+        GColorBlack, GRect(31, 8, 138, 35), GTextAlignmentCenter);
+
+  for (uint8_t team = 0; team < 2; team++) {
+    const int x = team == 0 ? 18 : 110;
+    label(ctx, team == 0 ? "US" : "THEM", FONT_KEY_GOTHIC_18_BOLD,
+          team_color(team), GRect(x, 42, 72, 21), GTextAlignmentCenter);
+    snprintf(text, sizeof(text), "%u", s_match.score.points[team]);
+    label(ctx, text, s_match.score.points[team] > 99 ?
+          FONT_KEY_GOTHIC_28_BOLD : FONT_KEY_BITHAM_42_BOLD,
+          GColorBlack, GRect(x, 59, 72, 53), GTextAlignmentCenter);
+  }
+  fill(ctx, GColorBlack, GRect(94, 83, 12, 4));
+
+  if (s_match.score.phase == PHASE_MATCH_WON)
+    snprintf(text, sizeof(text), "MATCH %s  %u-%u", ours ? "WON" : "LOST",
+             s_match.score.sets[0], s_match.score.sets[1]);
+  else
+    snprintf(text, sizeof(text), "SETS %u-%u",
+             s_match.score.sets[0], s_match.score.sets[1]);
+  label(ctx, text, s_match.score.phase == PHASE_MATCH_WON ?
+        FONT_KEY_GOTHIC_18_BOLD : FONT_KEY_GOTHIC_24_BOLD,
+        GColorBlack, GRect(5, 113, 190, 26), GTextAlignmentCenter);
+
+  result_court(ctx);
+  fill(ctx, result_color, GRect(7, 190, 186, 25));
+  label(ctx, s_match.saved ? "SELECT MENU" :
+        s_match.score.phase == PHASE_MATCH_WON ? "SELECT SAVE MATCH" : "SELECT NEXT SET",
+        FONT_KEY_GOTHIC_18_BOLD, GColorWhite,
+        GRect(11, 190, 178, 25), GTextAlignmentCenter);
+  label(ctx, s_notice[0] ? s_notice :
+        s_match.saved ? "MATCH SAVED" : "HOLD SELECT: UNDO",
+        FONT_KEY_GOTHIC_14_BOLD, GColorBlack,
+        GRect(5, 214, 190, 14), GTextAlignmentCenter);
+}
+
 static void score_screen(GContext *ctx) {
+  if (s_match.score.phase != PHASE_PLAYING) {
+    set_result_screen(ctx);
+    return;
+  }
   char text[40];
   fill(ctx, GColorWhite, GRect(0, 0, 200, 228));
   int sets_played = s_match.score.sets[0] + s_match.score.sets[1];
-  int shown_set = sets_played + (s_match.score.phase == PHASE_PLAYING ? 1 : 0);
+  int shown_set = sets_played + 1;
   snprintf(text, sizeof(text), "SET %d / %d", shown_set, s_match.rules.best_of);
   label(ctx, text, FONT_KEY_GOTHIC_18_BOLD, GColorBlack,
         GRect(8, 5, 105, 25), GTextAlignmentLeft);
@@ -347,18 +423,9 @@ static void score_screen(GContext *ctx) {
   snprintf(text, sizeof(text), "PLAY TO %u  /  WIN BY 2", match_target(&s_match));
   label(ctx, text, FONT_KEY_GOTHIC_18, GColorBlack,
         GRect(4, 171, 192, 25), GTextAlignmentCenter);
-  if (s_match.score.phase == PHASE_PLAYING) {
-    label(ctx, touch_ready() ? "TAP TEAM +1  |  BUTTONS OK" :
-          "UP +US  |  DOWN +THEM", FONT_KEY_GOTHIC_18_BOLD, GColorBlack,
-          GRect(4, 197, 192, 24), GTextAlignmentCenter);
-  } else if (s_match.score.phase == PHASE_SET_WON) {
-    label(ctx, "SELECT NEXT | HOLD UNDO", FONT_KEY_GOTHIC_18_BOLD, GColorBlack,
-          GRect(3, 197, 194, 24), GTextAlignmentCenter);
-  } else {
-    label(ctx, s_match.saved ? "SAVED  |  SELECT: MENU" :
-          "SELECT SAVE | HOLD UNDO", FONT_KEY_GOTHIC_18_BOLD, GColorBlack,
-          GRect(2, 197, 196, 24), GTextAlignmentCenter);
-  }
+  label(ctx, touch_ready() ? "TAP TEAM +1  |  BUTTONS OK" :
+        "UP +US  |  DOWN +THEM", FONT_KEY_GOTHIC_18_BOLD, GColorBlack,
+        GRect(4, 197, 192, 24), GTextAlignmentCenter);
   if (s_notice[0]) {
     fill(ctx, GColorBlack, GRect(10, 169, 180, 28));
     label(ctx, s_notice, FONT_KEY_GOTHIC_18_BOLD, GColorWhite,
@@ -399,7 +466,22 @@ static void colors_screen(GContext *ctx) {
   const char *items[] = {us, them,
                          s_location_enabled ? "Save GPS: on" : "Save GPS: off",
                          s_touch_enabled ? "Touch: on" : "Touch: off", "Done"};
-  list_screen(ctx, s_notice[0] ? s_notice : "COLORS / INPUT", items, 5, s_cursor);
+  fill(ctx, GColorWhite, GRect(0, 0, 200, 228));
+  fill(ctx, GColorBlack, GRect(0, 0, 200, 37));
+  label(ctx, s_notice[0] ? s_notice : "COLORS / INPUT",
+        FONT_KEY_GOTHIC_24_BOLD, GColorWhite,
+        GRect(7, 3, 186, 31), GTextAlignmentLeft);
+  for (uint8_t i = 0; i < 5; i++) {
+    int y = 39 + i * 37;
+    if (i == s_cursor) fill(ctx, GColorBlue, GRect(7, y, 186, 35));
+    label(ctx, items[i], i < 2 ? FONT_KEY_GOTHIC_18_BOLD : FONT_KEY_GOTHIC_24_BOLD,
+          i == s_cursor ? GColorWhite : GColorBlack,
+          GRect(14, y + 1, i < 2 ? 137 : 172, 32), GTextAlignmentLeft);
+    if (i < 2) {
+      fill(ctx, GColorBlack, GRect(157, y + 3, 30, 29));
+      fill(ctx, team_color(i), GRect(159, y + 5, 26, 25));
+    }
+  }
 }
 
 static uint8_t selected_format(void) {
@@ -413,9 +495,19 @@ static uint8_t selected_format(void) {
 }
 
 static void formats_screen(GContext *ctx) {
-  const char *items[] = {"3 SETS: 25/25/15", "JV: 3 SETS TO 25",
-                         "VARSITY: 5 TO 25", "CUSTOM RULES", "COLORS / INPUT"};
-  list_screen(ctx, "MATCH SETTINGS", items, 5, s_cursor);
+  const char *items[] = {"3 SETS: 25/25/15", "3 SETS: 25/25/25",
+                         "5 SETS: 25/25/25/25/25", "CUSTOM RULES", "COLORS / INPUT"};
+  fill(ctx, GColorWhite, GRect(0, 0, 200, 228));
+  fill(ctx, GColorBlack, GRect(0, 0, 200, 37));
+  label(ctx, "MATCH SETTINGS", FONT_KEY_GOTHIC_24_BOLD, GColorWhite,
+        GRect(7, 3, 186, 31), GTextAlignmentLeft);
+  for (uint8_t i = 0; i < 5; i++) {
+    int y = 39 + i * 37;
+    if (i == s_cursor) fill(ctx, GColorBlue, GRect(7, y, 186, 35));
+    label(ctx, items[i], i < PRESET_COUNT ? FONT_KEY_GOTHIC_18_BOLD : FONT_KEY_GOTHIC_24_BOLD,
+          i == s_cursor ? GColorWhite : GColorBlack,
+          GRect(14, y + 1, 172, 32), GTextAlignmentLeft);
+  }
 }
 
 static void current_month(int16_t offset, int *year, int *month) {
@@ -636,6 +728,7 @@ static void update_proc(Layer *layer, GContext *ctx) {
 
 static bool add_point(uint8_t team, bool touch) {
   if (s_screen != SCREEN_SCORE || !match_point(&s_match, team)) return false;
+  s_notice[0] = '\0';
   save_match_state();
   if (touch) vibes_short_pulse();
   redraw();
@@ -796,7 +889,13 @@ static void tap_calendar_day(int16_t x, int16_t y) {
 
 static void touch_tap(int16_t x, int16_t y, int16_t start_x, int16_t start_y) {
   if (s_screen == SCREEN_SCORE) {
-    if (s_match.score.phase != PHASE_PLAYING || y < 39 || y >= 165 ||
+    if (s_match.score.phase != PHASE_PLAYING) {
+      if (x >= 7 && x < 193 && y >= 190 && y < 215 &&
+          start_x >= 7 && start_x < 193 && start_y >= 190 && start_y < 215)
+        select_click(NULL, NULL);
+      return;
+    }
+    if (y < 39 || y >= 165 ||
         start_y < 39 || start_y >= 165) return;
     if (x >= 7 && x < 97 && start_x >= 7 && start_x < 97) add_point(0, true);
     else if (x >= 103 && x < 193 && start_x >= 103 && start_x < 193)
